@@ -1,39 +1,97 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-import statsmodels.api as sm
-from statsmodels.formula.api import ols
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
+from rpy2 import robjects as ro
+from rpy2.robjects import pandas2ri, r
 
-# Read data
-data_path = "C:\\Users\\91904\\Documents\\3rd Sem\\17MDC36 Business Statistics Lab using R\\CAT\\crop.data.csv"
-data = pd.read_csv(data_path)
+# Define a function to install and load R packages if not already installed
+def install_load_r_packages(packages):
+    for package in packages:
+        if not ro.packages.isinstalled(package):
+            ro.r(f"install.packages('{package}')")
+        ro.r(f"library({package})")
 
-# Summary of the data
-st.subheader("Summary of Data")
-st.write(data.describe())
+# Install and load necessary R packages
+install_load_r_packages(["ggplot2", "ggpubr", "tidyverse", "broom"])
 
-# ANOVA and Linear Model
-st.subheader("Analysis of Variance (ANOVA) and Linear Model")
-anova_results = ols('yield ~ C(fertilizer) * C(density)', data=data).fit()
-st.write(anova_results.summary())
+# Function to run R code
+def run_r_code(r_code):
+    ro.r(r_code)
 
-# Tukey's HSD Test
-st.subheader("Tukey's HSD Test")
-tukey_results = pairwise_tukeyhsd(data['yield'], data['fertilizer'] + data['density'])
-st.write(tukey_results)
+# Read the CSV file
+@st.cache(persist=True)
+def load_data():
+    data = pd.read_csv("file.csv")
+    return data
 
-# Visualization
-st.subheader("Visualization")
-fig, ax = plt.subplots(figsize=(10, 6))
+data = load_data()
 
-for (fertilizer, group) in data.groupby('fertilizer'):
-    group_means = group.groupby('density')['yield'].mean()
-    ax.plot(group_means.index, group_means.values, marker='o', linestyle='-', label=f'Fertilizer {fertilizer}')
+# Convert pandas DataFrame to R DataFrame
+pandas2ri.activate()
+ro.globalenv['data'] = pandas2ri.py2rpy(data)
 
-ax.set_xlabel('Planting Density (1=Low, 2=High)')
-ax.set_ylabel('Yield (Bushels per Acre)')
-ax.set_title('Crop Yield in Response to Fertilizer Mix and Planting Density')
-ax.legend()
-st.pyplot(fig)
+# Define R code to run
+r_code = """
+# Statistical Analysis and Visualization with ggplot2
+# Example: Statistical Analysis
+oneWayAnova <- aov(yield ~ fertilizer, data = data)
+summary(oneWayAnova)
+
+twoWayAnova <- aov(yield ~ fertilizer + density, data = data)
+summary(twoWayAnova)
+
+interaction <- aov(yield ~ fertilizer*density, data = data)
+summary(interaction)
+
+blocking <- aov(yield ~ fertilizer + density + block, data = data)
+summary(blocking)
+
+relation <- lm(yield ~ fertilizer + density + block, data = data)
+summary(relation)
+
+# Example: Tukey's HSD Test
+tukey.two.way <- TukeyHSD(twoWayAnova)
+tukey.two.way
+
+# Example: Mean Yield Data
+mean.yield.data <- data %>%
+                   group_by(fertilizer, density) %>%
+                   summarise(yield = mean(yield))
+mean.yield.data$group <- c("a", "b", "b", "b", "b", "c")
+mean.yield.data
+
+# Example: Visualization with ggplot2
+library(ggplot2)
+
+# Plotting mean yield data
+ggplot(mean.yield.data, aes(x = density, y = yield, group = fertilizer, color = fertilizer)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Mean Crop Yield by Fertilizer and Density",
+       x = "Planting Density",
+       y = "Yield") +
+  theme_minimal()
+"""
+
+# Execute R code
+run_r_code(r_code)
+
+# Display results using Streamlit
+st.title("Crop Yield Analysis")
+st.header("Summary of ANOVA and Linear Model")
+st.write(ro.r("summary(oneWayAnova)"))  # Display ANOVA summary
+st.write(ro.r("summary(twoWayAnova)"))  # Display Two-Way ANOVA summary
+st.write(ro.r("summary(relation)"))     # Display Linear Model summary
+
+st.header("Tukey's HSD Test")
+st.write(ro.r("tukey.two.way"))        # Display Tukey's HSD results
+
+# Example: Display mean yield data (converted to Python DataFrame)
+mean_yield_data = ro.r("mean.yield.data")
+st.subheader("Mean Yield Data")
+st.write(mean_yield_data)
+
+# Example: Display ggplot2 plot using matplotlib
+# This requires converting ggplot2 plot to Python-compatible format (not shown here)
+# For ggplot2 plots, consider using tools like reticulate or plotly for conversion
+

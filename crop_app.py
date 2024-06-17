@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from rpy2 import robjects as ro
-from rpy2.robjects import pandas2ri, r
+from rpy2.robjects import pandas2ri
 
-# Define a function to install and load R packages if not already installed
+# Function to install and load R packages if not already installed
 def install_load_r_packages(packages):
     for package in packages:
         if not ro.packages.isinstalled(package):
@@ -21,7 +21,7 @@ def run_r_code(r_code):
 # Read the CSV file
 @st.cache(persist=True)
 def load_data():
-    data = pd.read_csv("file.csv")
+    data = pd.read_csv("path/to/your/csv/file.csv")
     return data
 
 data = load_data()
@@ -92,6 +92,11 @@ st.subheader("Mean Yield Data")
 st.write(mean_yield_data)
 
 # Example: Display ggplot2 plot using matplotlib
-# This requires converting ggplot2 plot to Python-compatible format (not shown here)
-# For ggplot2 plots, consider using tools like reticulate or plotly for conversion
+plt.figure(figsize=(10, 6))
+# Placeholder plot; adapt to display ggplot2 plot using reticulate or plotly if needed
+plt.plot([1, 2, 3], [1, 4, 9])  # Replace with actual ggplot2 conversion if applicable
+plt.title("Example Plot")
+plt.xlabel("X axis")
+plt.ylabel("Y axis")
+st.pyplot(plt)
 

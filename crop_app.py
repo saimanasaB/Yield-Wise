@@ -21,7 +21,7 @@ def run_r_code(r_code):
 # Read the CSV file
 @st.cache(persist=True)
 def load_data():
-    data = pd.read_csv("path/to/your/csv/file.csv")
+    data = pd.read_csv("file.csv")
     return data
 
 data = load_data()
